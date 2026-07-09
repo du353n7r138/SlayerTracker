@@ -72,7 +72,7 @@ function ST.SendChatSummary()
     local r, g, b = unpack(ST.GetPercentageColor(ST.uptimePercentage))
     local hexColor = string.format("%02x%02x%02x", r * 255, g * 255, b * 255)
 
-    d(string.format("%s |cFFFFFFMajor Slayer Uptime -|r |c%s%.1f%%|r |cFFFFFF- Fight: %s|r", ST.CHAT, hexColor, ST.uptimePercentage, formattedTime))
+    d(string.format("|cFF7F00[Major Slayer]|r |cFFFFFFUptime:|r |c%s%.1f%%|r |cFFFFFF- Fight: %s|r", hexColor, ST.uptimePercentage, formattedTime))
 end
 
 ---------------------------------------------------------------------------
@@ -248,7 +248,6 @@ function ST.UpdateVisuals()
             ColorText = ColorGradient
         end
     else
-        -- NOT ACTIVE OR 0 SECONDS
         if ST.isCombat and ST.hadBuffBefore then
             ColorBackground = ST.SV.ColorEnd
             if not ST.SV.isStaticTimer then
@@ -275,15 +274,42 @@ function ST.UpdateVisuals()
     end
 
     -- TEXT COLOR
-    ST.DURATION:SetColor(unpack(ColorText))
+    local r, g, b, a = unpack(ColorText)
+    if not ST.hadBuffBefore and not ST.isPreview then a = 2/3 end
+    ST.DURATION:SetColor(r, g, b, a)
 
     -- UPTIME LABEL
     ST.UPTIME_LABEL:SetHidden(ST.SV.isHideUptime)
     ST.UPTIME_LABEL:SetText(string.format("%.0f%%", ST.uptimePercentage))
     ST.UPTIME_LABEL:SetColor(unpack(ST.SV.textColorUptime))
 
+    -- EXPECTED SECONDS
+    local showExpSec = (not ST.SV.isHideExpSec) and (ST.isWearingSlayerSet or ST.isPreview)
+    ST.EXPSEC_LABEL:SetHidden(not showExpSec)
+
+    if showExpSec then
+        local currentUlt = GetUnitPower("player", POWERTYPE_ULTIMATE)
+        local expectedSeconds = math.floor(currentUlt / 10)
+        ST.EXPSEC_LABEL:SetText(string.format("%d", expectedSeconds))
+
+        if ST.isActiveSlayerBar or ST.isPreview then
+            ST.EXPSEC_LABEL:SetColor(unpack(ST.SV.textColorExpSec))
+        else
+            ST.EXPSEC_LABEL:SetColor(1, 1, 1, 1)
+        end
+    end
+
     ST.BG:SetHidden(not ST.SV.isShowBackground)
     ST.ICON:SetHidden(not ST.SV.isShowBackground)
+
+    -- SCALE DOWN TEXT IF BOTH ACTIVE
+    if not ST.SV.isHideUptime and showExpSec then
+        ST.UPTIME_LABEL:SetScale(0.90)
+        ST.EXPSEC_LABEL:SetScale(0.90)
+    else
+        ST.UPTIME_LABEL:SetScale(1)
+        ST.EXPSEC_LABEL:SetScale(1)
+    end
 
     ST.UpdateVisibility()
 end
@@ -376,6 +402,11 @@ function ST.OnCombatState()
     ST.isCombat = IsUnitInCombat("player")
     ST.isPreview = false
 
+    if ST.PARENT then
+        ST.PARENT:SetMovable(not ST.SV.isLocked)
+        ST.PARENT:SetMouseEnabled(not ST.SV.isLocked)
+    end
+
     if ST.isCombat then
         local currentTime = GetGameTimeMilliseconds()
         ST.timeFightStart = currentTime
@@ -388,6 +419,79 @@ function ST.OnCombatState()
     end
 
     ST.CheckCurrentBuffs()
+end
+
+---------------------------------------------------------------------------
+-- CHECK PLAYER SETS
+---------------------------------------------------------------------------
+function ST.CheckPlayerSets()
+    local bodySets = {}
+    local frontSets = {}
+    local backSets = {}
+
+    local oldWearingStatus = ST.isWearingSlayerSet
+    local oldActiveBarStatus = ST.isActiveSlayerBar
+
+    ST.isWearingSlayerSet = false
+    ST.isActiveSlayerBar = false
+
+    for _, itemSlot in ipairs(ST.ITEM_SLOTS) do
+        local itemLink = GetItemLink(BAG_WORN, itemSlot)
+        local hasSet, _, _, _, _, setId = GetItemLinkSetInfo(itemLink, false)
+
+        if hasSet and ST.SLAYER_SETS[setId] then
+            local weight = 1
+            local weaponType = GetItemWeaponType(BAG_WORN, itemSlot) or 0
+            if ST.WEAPONTYPE_TWO_HANDED[weaponType] then
+                weight = 2
+            end
+
+            if itemSlot == EQUIP_SLOT_MAIN_HAND or itemSlot == EQUIP_SLOT_OFF_HAND then
+                frontSets[setId] = (frontSets[setId] or 0) + weight
+            elseif itemSlot == EQUIP_SLOT_BACKUP_MAIN or itemSlot == EQUIP_SLOT_BACKUP_OFF then
+                backSets[setId] = (backSets[setId] or 0) + weight
+            else
+                bodySets[setId] = (bodySets[setId] or 0) + weight
+            end
+        end
+    end
+
+    local activePair = GetActiveWeaponPairInfo()
+
+    for setId, _ in pairs(ST.SLAYER_SETS) do
+        local body = bodySets[setId] or 0
+        local front = frontSets[setId] or 0
+        local back = backSets[setId] or 0
+
+        local totalFront = body + front
+        local totalBack = body + back
+
+        if totalFront >= 5 or totalBack >= 5 then
+            ST.isWearingSlayerSet = true
+        end
+
+        if (activePair == ACTIVE_WEAPON_PAIR_MAIN and totalFront >= 5) or
+           (activePair == ACTIVE_WEAPON_PAIR_BACKUP and totalBack >= 5) then
+            ST.isActiveSlayerBar = true
+        end
+    end
+
+    if ST.isLoaded and (oldWearingStatus ~= ST.isWearingSlayerSet or oldActiveBarStatus ~= ST.isActiveSlayerBar) then
+        ST.UpdateTimerPosition()
+        ST.UpdateVisuals()
+    end
+end
+
+---------------------------------------------------------------------------
+-- SET ITEM CHANGED
+---------------------------------------------------------------------------
+function ST.OnInventorySingleSlotUpdate()
+    EVENT_MANAGER:UnregisterForUpdate(ST.NAME .. "InventoryUpdateDelay")
+
+    EVENT_MANAGER:RegisterForUpdate(ST.NAME .. "InventoryUpdateDelay", 100, function()
+        EVENT_MANAGER:UnregisterForUpdate(ST.NAME .. "InventoryUpdateDelay")
+        ST.CheckPlayerSets()
+    end)
 end
 
 ---------------------------------------------------------------------------
@@ -411,6 +515,12 @@ function ST.Enable()
 
     EVENT_MANAGER:AddFilterForEvent(ST.NAME, EVENT_EFFECT_CHANGED, REGISTER_FILTER_UNIT_TAG, "player")
     EVENT_MANAGER:AddFilterForEvent(ST.NAME, EVENT_EFFECT_CHANGED, REGISTER_FILTER_ABILITY_ID, ST.MAJOR_SLAYER_ID)
+    EVENT_MANAGER:RegisterForEvent(ST.NAME, EVENT_ACTIVE_WEAPON_PAIR_CHANGED, ST.OnInventorySingleSlotUpdate)
+
+    EVENT_MANAGER:RegisterForEvent(ST.NAME, EVENT_INVENTORY_SINGLE_SLOT_UPDATE, ST.OnInventorySingleSlotUpdate)
+    EVENT_MANAGER:AddFilterForEvent(ST.NAME, EVENT_INVENTORY_SINGLE_SLOT_UPDATE, REGISTER_FILTER_BAG_ID, BAG_WORN)
+
+    ST.CheckPlayerSets()
 
     ST.OnCombatState()
     ST.isLoaded = true
@@ -428,6 +538,9 @@ function ST.Disable()
     EVENT_MANAGER:UnregisterForEvent(ST.NAME, EVENT_EFFECT_CHANGED)
     EVENT_MANAGER:UnregisterForEvent(ST.NAME, EVENT_GROUP_MEMBER_ROLE_CHANGED)
     EVENT_MANAGER:UnregisterForUpdate(ST.NAME .. "Update")
+
+    EVENT_MANAGER:UnregisterForEvent(ST.NAME, EVENT_INVENTORY_SINGLE_SLOT_UPDATE)
+    EVENT_MANAGER:UnregisterForEvent(ST.NAME, EVENT_ACTIVE_WEAPON_PAIR_CHANGED)
 
     ST.PARENT:SetHidden(true)
     ST.isActive = false

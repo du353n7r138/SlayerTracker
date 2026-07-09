@@ -30,7 +30,8 @@ function ST.CreateSettings()
             ST.PARENT:SetHidden(false)
             ST.isActive = true
             ST.endTime = GetGameTimeMilliseconds() + 15000
-            ST.uptimePercentage = 100
+            ST.uptimePercentage = 62
+            ST.expSec = 50
             ST.UpdateVisuals()
         end
     end
@@ -53,7 +54,7 @@ function ST.CreateSettings()
         },
         {
 			type = "description",
-			text = "Type |cFF7F00/slayertracker|r to lock/unlock the tracker and reposition it.",
+			text = "Type |cFF7F00/slayertracker|r to |cFF0000LOCK|r or |c00FF00UNLOCK|r the tracker and reposition it.",
 			width = "full"
 		},
         {
@@ -100,7 +101,7 @@ function ST.CreateSettings()
                     default = ST.Default.visibilityMode,
                     disabled = function() return not ST.SV.enableAddon end,
                 },
-                { type = "header", name = "Role Filters" },
+                { type = "header", name = "|cFFBF7FRole Filters|r" },
                 {
                     type = "checkbox", name = "Enable as Tank " .. iconTank,
                     getFunc = function() return ST.SV.isEnabledTank end,
@@ -151,7 +152,7 @@ function ST.CreateSettings()
             controls = {
                 {
                     type = "checkbox",
-                    name = "Lock Position",
+                    name = "|cFF0000Lock Position|r",
                     tooltip = "Locks position of the tracker.",
                     getFunc = function() return ST.SV.isLocked end,
                     setFunc = function(value)
@@ -163,7 +164,7 @@ function ST.CreateSettings()
                     default = ST.Default.isLocked,
                 },
 
-                { type = "header", name = "General Design" },
+                { type = "header", name = "|cFFBF7FGeneral Design|r" },
                 {
                     type = "checkbox",
                     name = "Show Background & Border",
@@ -230,7 +231,20 @@ function ST.CreateSettings()
                     disabled = function() return not ST.SV.isShowBackground end
                 },
                 {
-                    type = "slider", name = "Icon Desaturation",
+                    type = "checkbox", name = "Use Alternative Icon",
+                    tooltip = "Choose between the axe or the red buff icon.",
+                    getFunc = function() return ST.SV.isAlternativeIcon end,
+                    setFunc = function(value)
+                        ST.SV.isAlternativeIcon = value
+                        ST.SV.textureIcon = GetAbilityIcon((value and ST.MAJOR_SLAYER_ICON) or ST.MAJOR_SLAYER_ID)
+                        ST.ICON:SetTexture(ST.SV.textureIcon)
+                        RefreshPreview()
+                    end,
+                    default = ST.Default.isAlternativeIcon,
+                    disabled = function() return not ST.SV.enableAddon end,
+                },
+                {
+                    type = "slider", name = "Icon Desaturation (100 = B/W)",
                     min = 0, max = 100, step = 5,
                     getFunc = function() return ST.SV.iconDesaturation end,
                     setFunc = function(value)
@@ -241,7 +255,7 @@ function ST.CreateSettings()
                     disabled = function() return not ST.SV.enableAddon end,
                 },
 
-                { type = "header", name = "Colors (Border Gradient)" },
+                { type = "header", name = "|cFFBF7FColors (Border Gradient)|r" },
                 {
                     type = "slider", name = "Gradient Threshold [sec]",
                     tooltip = "Time at which the gradient starts fading from Start to End.",
@@ -291,7 +305,7 @@ function ST.CreateSettings()
                     disabled = function() return not ST.SV.enableAddon end,
                 },
 
-                { type = "header", name = "Timer Color Options" },
+                { type = "header", name = "|cFFBF7FTimer Color Options|r" },
                 {
                     type = "checkbox",
                     name = "Use Static Timer Color",
@@ -315,7 +329,7 @@ function ST.CreateSettings()
                     disabled = function() return not ST.SV.enableAddon or not ST.SV.isStaticTimer end,
                 },
 
-                { type = "header", name = "Timer Font & Positioning" },
+                { type = "header", name = "|cFFBF7FTimer Font & Positioning|r" },
                 {
                     type = "slider", name = "Timer Font Size",
                     min = 12, max = 124, step = 1,
@@ -352,12 +366,13 @@ function ST.CreateSettings()
                 },
 
                 -- UPTIME
-                { type = "header", name = "Uptime (Top Left)" },
+                { type = "header", name = "|cFFBF7FUptime (Top Left)|r" },
                 {
                     type = "checkbox", name = "Show Uptime %",
                     getFunc = function() return not ST.SV.isHideUptime end,
                     setFunc = function(value)
                         ST.SV.isHideUptime = not value
+                        ST.UpdateTimerPosition()
                         RefreshPreview()
                     end,
                     default = not ST.Default.isHideUptime,
@@ -382,6 +397,41 @@ function ST.CreateSettings()
                         ST.UpdateFonts(); RefreshPreview()
                     end,
                     default = ST.Default.fontSizeUptime,
+                    disabled = function() return not ST.SV.enableAddon end,
+                },
+
+                -- EXP SECONDS
+                { type = "header", name = "|cFFBF7FExpected Seconds (Top Right)|r" },
+                {
+                    type = "checkbox", name = "Show Exp. Seconds (WM / MA Equipped)",
+                    getFunc = function() return not ST.SV.isHideExpSec end,
+                    setFunc = function(value)
+                        ST.SV.isHideExpSec = not value
+                        ST.UpdateTimerPosition()
+                        RefreshPreview()
+                    end,
+                    default = not ST.Default.isHideExpSec,
+                    disabled = function() return not ST.SV.enableAddon end,
+                },
+                {
+                    type = "colorpicker", name = "Exp. Seconds Color (Active Bar)",
+                    getFunc = function() return unpack(ST.SV.textColorExpSec) end,
+                    setFunc = function(r, g, b, a)
+                        ST.SV.textColorExpSec = {r, g, b, a}
+                        RefreshPreview()
+                    end,
+                    default = GetColorDefault(ST.Default.textColorExpSec),
+                    disabled = function() return not ST.SV.enableAddon end,
+                },
+                {
+                    type = "slider", name = "Exp. Seconds Font Size",
+                    min = 12, max = 32, step = 1,
+                    getFunc = function() return ST.SV.fontSizeExpSec end,
+                    setFunc = function(value)
+                        ST.SV.fontSizeExpSec = value
+                        ST.UpdateFonts(); RefreshPreview()
+                    end,
+                    default = ST.Default.fontSizeExpSec,
                     disabled = function() return not ST.SV.enableAddon end,
                 },
             },

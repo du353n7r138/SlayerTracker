@@ -36,7 +36,8 @@ SLASH_COMMANDS["/slayertracker"] = function()
         ST.PARENT:SetHidden(false)
         ST.isActive = true
         ST.endTime = GetGameTimeMilliseconds() + 15000
-        ST.uptimePercentage = 100
+        ST.uptimePercentage = 62
+        ST.expSec = 50
 
         ST.ManageUpdateLoop()
         ST.UpdateVisibility()

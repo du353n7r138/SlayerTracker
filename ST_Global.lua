@@ -1,7 +1,7 @@
 SlayerTracker = {
     NAME = "SlayerTracker",
     AUTHOR = "@Duesentrieb",
-    VERSION = "20260704-0001",
+    VERSION = "20260709-0001",
     CHAT = "|cFF7F00[ST]|r",
 
     -- UI ELEMENTS
@@ -34,11 +34,38 @@ SlayerTracker = {
     timeActive = 0,
     uptimePercentage = 0,
 
+    -- EXPECTED SECONDS
+    expSec = 0,
+
     -- STATE VARIABLES
     isLoaded = false,
     isCombat = false,
     isPreview = false,
     isConsole = false,
+    isWearingSlayerSet = false,
+    isActiveSlayerBar = false,
+
+    SLAYER_SETS = {
+        [331] = true, -- WARMACHINE (SLAYER)
+        [332] = true, -- MASTER ARCHITECT (SLAYER)
+    },
+
+    ITEM_SLOTS = {
+        EQUIP_SLOT_HEAD, EQUIP_SLOT_SHOULDERS, EQUIP_SLOT_CHEST, EQUIP_SLOT_HAND,
+        EQUIP_SLOT_WAIST, EQUIP_SLOT_LEGS, EQUIP_SLOT_FEET, EQUIP_SLOT_NECK,
+        EQUIP_SLOT_RING1, EQUIP_SLOT_RING2, EQUIP_SLOT_MAIN_HAND, EQUIP_SLOT_OFF_HAND,
+        EQUIP_SLOT_BACKUP_MAIN, EQUIP_SLOT_BACKUP_OFF
+    },
+
+    WEAPONTYPE_TWO_HANDED = {
+        [WEAPONTYPE_FIRE_STAFF]        = true,
+        [WEAPONTYPE_LIGHTNING_STAFF]   = true,
+        [WEAPONTYPE_FROST_STAFF]       = true,
+        [WEAPONTYPE_HEALING_STAFF]     = true,
+        [WEAPONTYPE_TWO_HANDED_SWORD]  = true,
+        [WEAPONTYPE_TWO_HANDED_AXE]    = true,
+        [WEAPONTYPE_TWO_HANDED_HAMMER] = true,
+    },
 
     -- DEFAULT SETTINGS
     Default = {
@@ -59,6 +86,9 @@ SlayerTracker = {
         iconDesaturation = 50,
         isThickOutline = true,
 
+        isAlternativeIcon = true,
+        textureIcon = GetAbilityIcon(93120),
+
         -- COLORS
         ColorIdle = {0.5, 0.5, 0.5, 1},
         ColorStart = {0, 1, 0, 1},
@@ -76,6 +106,11 @@ SlayerTracker = {
         isHideUptime = false,
         fontSizeUptime = 22,
         textColorUptime = {1, 1, 1, 1},
+
+        -- EXPECTED SECONDS
+        isHideExpSecSec = false,
+        fontSizeExpSec = 22,
+        textColorExpSec = {0, 1, 0, 1},
 
         -- ANIMATION
         animationScale = 200,

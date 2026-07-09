@@ -30,7 +30,7 @@ function ST.CreateGuiElements()
     ST.ICON:SetAnchor(CENTER, ST.PARENT, CENTER)
     local innerSize = math.max(1, ST.SV.iconSize - (ST.SV.borderThickness * 2))
     ST.ICON:SetDimensions(innerSize, innerSize)
-    ST.ICON:SetTexture(GetAbilityIcon(ST.MAJOR_SLAYER_ICON))
+    ST.ICON:SetTexture(ST.SV.textureIcon)
     ST.ICON:SetHidden(not ST.SV.isShowBackground)
     ST.ICON:SetDesaturation(ST.SV.iconDesaturation / 100)
 
@@ -43,7 +43,12 @@ function ST.CreateGuiElements()
     -- UPTIME PERCENTAGE
     ST.UPTIME_LABEL = WINDOW_MANAGER:CreateControl("$(parent)_UPTIME", ST.PARENT, CT_LABEL)
     ST.UPTIME_LABEL:SetColor(unpack(ST.SV.textColorUptime))
-    ST.UPTIME_LABEL:SetAnchor(TOPLEFT, ST.PARENT, TOPLEFT, 7, 3)
+    ST.UPTIME_LABEL:SetAnchor(TOPLEFT, ST.PARENT, TOPLEFT, 7, 4)
+
+    -- EXPECTED SECONDS
+    ST.EXPSEC_LABEL = WINDOW_MANAGER:CreateControl("$(parent)_EXPSEC", ST.PARENT, CT_LABEL)
+    ST.EXPSEC_LABEL:SetColor(unpack(ST.SV.textColorExpSec))
+    ST.EXPSEC_LABEL:SetAnchor(TOPRIGHT, ST.PARENT, TOPRIGHT, -7, 4)
 
     ST.UpdateFonts()
 end
@@ -53,7 +58,14 @@ end
 ---------------------------------------------------------------------------
 function ST.UpdateTimerPosition()
     ST.DURATION:ClearAnchors()
-    ST.DURATION:SetAnchor(CENTER, ST.PARENT, CENTER, 0, ST.SV.offsetYTimer)
+
+    local showExpSec = (not ST.SV.isHideExpSec) and (ST.isWearingSlayerSet or ST.isPreview)
+
+    if ST.SV.isHideUptime and not showExpSec then
+        ST.DURATION:SetAnchor(CENTER, ST.PARENT, CENTER, 0, ST.SV.offsetYTimer - ST.Default.offsetYTimer)
+    else
+        ST.DURATION:SetAnchor(CENTER, ST.PARENT, CENTER, 0, ST.SV.offsetYTimer)
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -63,6 +75,7 @@ function ST.UpdateFonts()
     local style = ST.SV.isThickOutline and "thick-outline" or "soft-shadow-thick"
     ST.DURATION:SetFont("$(BOLD_FONT)|" .. ST.SV.fontSizeTimer .. "|" .. style)
     ST.UPTIME_LABEL:SetFont("$(BOLD_FONT)|" .. ST.SV.fontSizeUptime .. "|" .. style)
+    ST.EXPSEC_LABEL:SetFont("$(BOLD_FONT)|" .. ST.SV.fontSizeExpSec .. "|" .. style)
 end
 
 ---------------------------------------------------------------------------
